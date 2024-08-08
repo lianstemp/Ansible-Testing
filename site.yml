@@ -3,26 +3,19 @@
   hosts: dbtzen
   become: yes
   tasks:
-    - name: Update and install required packages
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - software-properties-common
-        state: present
-        update_cache: yes
-
-    - name: Add Docker GPG key
-      command: >
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg
-        | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-
     - name: Create directory for APT keyrings
       file:
         path: /etc/apt/keyrings
         state: directory
         mode: '0755'
+
+    - name: Download Docker GPG key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.gpg
+
+    - name: Convert Docker GPG key to correct format
+      command: gpg --dearmor -o /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.gpg
 
     - name: Add Docker APT repository
       apt_repository:
