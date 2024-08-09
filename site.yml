@@ -4,7 +4,7 @@
   become: yes
   vars:
     rancher_version: v2.9.0
-
+    docker_timeout: 300
   tasks:
     - name: Install required packages
       apt:
@@ -49,6 +49,13 @@
         groups: docker
         append: yes
 
+    - name: Pull Rancher image
+      docker_image:
+        name: "rancher/rancher:{{ rancher_version }}"
+        source: pull
+      async: "{{ docker_timeout }}"
+      poll: 5
+
     - name: Install Rancher
       docker_container:
         name: rancher
@@ -60,6 +67,8 @@
           - "443:443"
         volumes:
           - /opt/rancher:/var/lib/rancher
+      async: "{{ docker_timeout }}"
+      poll: 5
 
     - name: Wait for Rancher to be ready
       uri:
@@ -69,4 +78,4 @@
       register: result
       until: result.status == 200
       retries: 60
-      delay: 5
+      delay: 10
