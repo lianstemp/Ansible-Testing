@@ -16,14 +16,19 @@
         state: present
         update_cache: yes
 
-    - name: Add Docker GPG apt Key
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+    - name: Create directory for Docker GPG key
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker GPG apt key
+      ansible.builtin.command:
+        cmd: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.asc
 
     - name: Add Docker Repository
       apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        repo: deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
         state: present
 
     - name: Install Docker
@@ -48,6 +53,12 @@
         name: "{{ ansible_user }}"
         groups: docker
         append: yes
+
+    - name: Create directory for Rancher Docker Compose file
+      file:
+        path: /opt/rancher
+        state: directory
+        mode: '0755'
         
     - name: Create Docker Compose file for Rancher
       copy:
