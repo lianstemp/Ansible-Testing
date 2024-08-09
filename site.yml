@@ -3,7 +3,7 @@
   hosts: dbtzen
   become: yes
   vars:
-    rancher_version: v2.9.0
+    rancher_version: v2.8.6
     docker_timeout: 300
   tasks:
     - name: Install required packages
@@ -70,6 +70,24 @@
         privileged: yes
       async: "{{ docker_timeout }}"
       poll: 5
+
+    - name: Update GRUB configuration if Ubuntu version is 22.04
+      block:
+        - name: Check Ubuntu version
+          command: lsb_release -cs
+          register: ubuntu_version
+
+        - name: Add GRUB parameters for Ubuntu 22.04
+          lineinfile:
+            path: /etc/default/grub
+            line: 'GRUB_CMDLINE_LINUX="cgroup_memory=1 cgroup_enable=memory swapaccount=1 systemd.unified_cgroup_hierarchy=0"'
+            create: yes
+            validate: 'grep -q "GRUB_CMDLINE_LINUX" %s'
+          when: ubuntu_version.stdout == 'jammy'
+
+        - name: Update GRUB
+          command: update-grub
+          when: ubuntu_version.stdout == 'jammy'
 
     - name: Wait for Rancher to be ready
       uri:
