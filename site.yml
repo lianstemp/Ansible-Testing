@@ -67,6 +67,7 @@
           - "443:443"
         volumes:
           - /opt/rancher:/var/lib/rancher
+        privileged: yes
       async: "{{ docker_timeout }}"
       poll: 5
 
