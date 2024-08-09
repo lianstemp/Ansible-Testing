@@ -67,9 +67,17 @@
           volumes:
             rancher-data:
 
+    - name: Get OS architecture
+      shell: uname -m
+      register: arch
+
+    - name: Get OS type
+      shell: uname -s
+      register: os_type
+
     - name: Install Docker Compose
       get_url:
-        url: https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-$(uname -s)-$(uname -m)
+        url: "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-{{ os_type.stdout }}-{{ arch.stdout }}"
         dest: /usr/local/bin/docker-compose
         mode: '0755'
 
