@@ -6,57 +6,21 @@
     rancher_version: latest
     docker_timeout: 300
   tasks:
-    - name: Install required packages
-      apt:
-        name: 
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - software-properties-common
-        state: present
-        update_cache: yes
-
-    - name: Remove existing Docker repository if any
-      apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: absent
-
-    - name: Remove existing Docker GPG key if any
-      file:
-        path: /etc/apt/keyrings/docker.asc
-        state: absent
-
-    - name: Create directory for Docker GPG key
-      file:
-        path: /etc/apt/keyrings
-        state: directory
-        mode: '0755'
-
-    - name: Add Docker GPG apt key
-      ansible.builtin.command:
-        cmd: curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.asc
-
-    - name: Add Docker Repository
-      apt_repository:
-        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: present
-        update_cache: yes
-
-    - name: Install Docker
-      apt:
-        name: 
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-buildx-plugin
-          - docker-compose-plugin
-        state: present
-    
-    - name: Start and enable Docker service
-      systemd:
+    - name: Install Docker using snap
+      community.general.snap:
         name: docker
+        state: present
+
+    - name: Ensure Docker service is started and enabled
+      systemd:
+        name: snap.docker.dockerd
         state: started
         enabled: yes
+
+    - name: Create Docker group
+      group:
+        name: docker
+        state: present
 
     - name: Add current user to Docker group
       user:
@@ -64,12 +28,12 @@
         groups: docker
         append: yes
 
-    - name: Create directory for Rancher Docker Compose file
+    - name: Create directory for Rancher
       file:
         path: /opt/rancher
         state: directory
         mode: '0755'
-        
+
     - name: Create Docker Compose file for Rancher
       copy:
         dest: /opt/rancher/docker-compose.yml
@@ -88,42 +52,18 @@
           volumes:
             rancher-data:
 
-    - name: Get OS architecture
-      shell: uname -m
-      register: arch
-
-    - name: Get OS type
-      shell: uname -s
-      register: os_type
-
     - name: Install Docker Compose
       get_url:
-        url: "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-{{ os_type.stdout }}-{{ arch.stdout }}"
+        url: "https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-{{ ansible_system }}-{{ ansible_architecture }}"
         dest: /usr/local/bin/docker-compose
         mode: '0755'
 
     - name: Start Rancher with Docker Compose
       command: docker compose -f /opt/rancher/docker-compose.yml up -d
+      args:
+        chdir: /opt/rancher
       async: "{{ docker_timeout }}"
       poll: 5
-
-    - name: Update GRUB configuration if Ubuntu version is 22.04
-      block:
-        - name: Check Ubuntu version
-          command: lsb_release -cs
-          register: ubuntu_version
-
-        - name: Add GRUB parameters for Ubuntu 22.04
-          lineinfile:
-            path: /etc/default/grub
-            line: 'GRUB_CMDLINE_LINUX="cgroup_memory=1 cgroup_enable=memory swapaccount=1 systemd.unified_cgroup_hierarchy=0"'
-            create: yes
-            validate: 'grep -q "GRUB_CMDLINE_LINUX" %s'
-          when: ubuntu_version.stdout == 'jammy'
-
-        - name: Update GRUB
-          command: update-grub
-          when: ubuntu_version.stdout == 'jammy'
 
     - name: Wait for Rancher to be ready
       uri:
