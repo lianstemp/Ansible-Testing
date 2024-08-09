@@ -1,5 +1,5 @@
 ---
-- name: Install Docker and Rancher on Ubuntu
+- name: Install Docker and Setup Rancher with Docker Compose on Ubuntu
   hosts: dbtzen
   become: yes
   vars:
@@ -49,25 +49,26 @@
         groups: docker
         append: yes
 
-    - name: Pull Rancher image
-      docker_image:
-        name: "rancher/rancher:{{ rancher_version }}"
-        source: pull
-      async: "{{ docker_timeout }}"
-      poll: 5
+    - name: Create Docker Compose file for Rancher
+      copy:
+        dest: /opt/rancher/docker-compose.yml
+        content: |
+          version: '3'
+          services:
+            rancher:
+              image: "rancher/rancher:{{ rancher_version }}"
+              restart: always
+              ports:
+                - "80:80"
+                - "443:443"
+              volumes:
+                - rancher-data:/var/lib/rancher
+              privileged: true
+          volumes:
+            rancher-data:
 
-    - name: Install Rancher
-      docker_container:
-        name: rancher
-        image: "rancher/rancher:{{ rancher_version }}"
-        state: started
-        restart_policy: always
-        ports:
-          - "80:80"
-          - "443:443"
-        volumes:
-          - /opt/rancher:/var/lib/rancher
-        privileged: yes
+    - name: Start Rancher with Docker Compose
+      command: docker-compose -f /opt/rancher/docker-compose.yml up -d
       async: "{{ docker_timeout }}"
       poll: 5
 
