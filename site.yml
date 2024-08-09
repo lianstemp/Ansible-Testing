@@ -1,8 +1,31 @@
 ---
-- name: Install Docker on Ubuntu
+- name: Install Docker and Rancher on Ubuntu
   hosts: dbtzen
   become: yes
+  vars:
+    rancher_version: v2.9.0
+
   tasks:
+    - name: Install required packages
+      apt:
+        name: 
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
     - name: Install Docker
       apt:
         name: 
@@ -25,3 +48,25 @@
         name: "{{ ansible_user }}"
         groups: docker
         append: yes
+
+    - name: Install Rancher
+      docker_container:
+        name: rancher
+        image: "rancher/rancher:{{ rancher_version }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "80:80"
+          - "443:443"
+        volumes:
+          - /opt/rancher:/var/lib/rancher
+
+    - name: Wait for Rancher to be ready
+      uri:
+        url: "https://{{ ansible_host }}"
+        validate_certs: no
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 60
+      delay: 5
