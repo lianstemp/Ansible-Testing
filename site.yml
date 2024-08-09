@@ -49,6 +49,12 @@
         groups: docker
         append: yes
 
+    - name: Create directory for Docker Compose file
+      file:
+        path: /opt/rancher
+        state: directory
+        mode: '0755'
+
     - name: Create Docker Compose file for Rancher
       copy:
         dest: /opt/rancher/docker-compose.yml
@@ -82,7 +88,7 @@
         mode: '0755'
 
     - name: Start Rancher with Docker Compose
-      command: /usr/local/bin/docker-compose -f /opt/rancher/docker-compose.yml up -d
+      command: docker compose -f /opt/rancher/docker-compose.yml up -d
       async: "{{ docker_timeout }}"
       poll: 5
 
