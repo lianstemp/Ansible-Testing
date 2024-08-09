@@ -3,7 +3,7 @@
   hosts: dbtzen
   become: yes
   vars:
-    rancher_version: v2.8.6-rc3
+    rancher_version: latest
     docker_timeout: 300
   tasks:
     - name: Install required packages
